@@ -1,49 +1,63 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/http";
-import type { ProvidersResponse } from "../types";
+
+type Provider = {
+  id: string;
+  type: string;
+  name: string;
+  enabled: boolean;
+};
 
 export default function Providers() {
-  const [res, setRes] = useState<ProvidersResponse | null>(null);
+  const [items, setItems] = useState<Provider[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    api<ProvidersResponse>("/api/providers")
-      .then(setRes)
-      .catch((e: any) => setErr(e?.message ?? "Failed"));
+    (async () => {
+      try {
+        setErr(null);
+        const res = await api<Provider[]>("/api/providers");
+        setItems(res);
+      } catch (e: any) {
+        setErr(e?.message ?? "Failed to load providers.");
+      }
+    })();
   }, []);
 
   return (
-    <div style={{ padding: 24, maxWidth: 900 }}>
+    <div style={{ padding: 24 }}>
       <h1>Providers</h1>
+      {err && <div style={{ color: "crimson" }}>{err}</div>}
 
-      {err && <pre style={{ color: "crimson" }}>{err}</pre>}
-      {!res && !err && <p>Loading...</p>}
+      <table
+        border={1}
+        cellPadding={8}
+        style={{ borderCollapse: "collapse", marginTop: 12 }}
+      >
+        <thead>
+          <tr>
+            <th>Provider ID</th>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((p) => (
+            <tr key={p.id}>
+              <td>{p.id}</td>
+              <td>{p.type}</td>
+              <td>{p.name}</td>
+              <td>{p.enabled ? "Active" : "Inactive"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-      {res && (
-        <>
-          <p>Total: {res.totalProviders}</p>
-          <table border={1} cellPadding={8}>
-            <thead>
-              <tr>
-                <th>ProviderId</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>RegisteredAt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {res.providers.map(p => (
-                <tr key={p.providerId}>
-                  <td>{p.providerId}</td>
-                  <td>{p.providerName}</td>
-                  <td>{p.providerType}</td>
-                  <td>{p.registeredAt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
+      <div style={{ marginTop: 12 }}>Total Providers: {items.length}</div>
+      <p>
+        <a href="/">Back to main menu</a>
+      </p>
     </div>
   );
 }

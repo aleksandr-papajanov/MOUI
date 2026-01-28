@@ -1,34 +1,72 @@
-export type OptimizationRequestResponse = { commandId: string };
-
-export type OptimizationStatusResponse =
-  | { status: "not_found" }
-  | { status: "processing" }
-  | {
-      status: "completed";
-      data: { providerId: string; response: string };
-    };
-
-export type ProvidersResponse = {
-  totalProviders: number;
-  providers: Array<{
-    providerId: string;
-    providerType: string;
-    providerName: string;
-    registeredAt: string;
+export type Provider = {
+  id: string;
+  type: string;
+  name: string;
+  enabled: boolean;
+  processCapabilities?: Array<{
+    id: string;
+    process: string;
+    costPerHour: number;
+    energyConsumptionKwhPerHour: number;
+    carbonIntensityKgCO2PerKwh: number;
+    qualityScore: number;
+    speedMultiplier: number;
+    usesRenewableEnergy: boolean;
   }>;
+  technicalCapabilities?: {
+    id: string;
+    power: number;
+    axisHeight: number;
+    tolerance: number;
+  };
 };
 
-export type MotorRequestDto = {
-  requestId: string;
+export type OptimizationRequestDto = {
   customerId: string;
-  power: string;
-  targetEfficiency: string;
+  motorSpecs: {
+    powerKW: number;
+    axisHeightMM: number;
+    currentEfficiency: string; // "IE1" | "IE2" | ...
+    targetEfficiency: string; // "IE1" | "IE2" | ...
+    malfunctionDescription?: string;
+  };
+  constraints?: {
+    maxBudget?: number;
+    requiredDeadline?: string | null; // ISO or null
+  };
+  createdAt?: string | null;
 };
 
-export type SubmitResponse = { status: string; requestId: string };
+export type OptimizationRequestResponse = {
+  requestId?: string;
+  commandId?: string;
+};
 
-export type SelectStrategyDto = {
-  requestId: string; // NOTE: your DTO expects Guid in C#, but submit uses string.
-  providerId: string;
+export type Strategy = {
+  id: string;
+  planId: string;
+  requestId: string;
   strategyName: string;
+  priority: string;
+  workflowType: string;
+};
+
+export type Plan = {
+  planId: string;
+  requestId: string;
+  selectedStrategy: any;
+  steps: Array<{
+    id: string;
+    stepNumber: number;
+    process: string;
+    selectedProviderId: string;
+    selectedProviderName: string;
+    estimate: {
+      id: string;
+      cost: number;
+      duration: string;
+      qualityScore: number;
+      emissionsKgCO2: number;
+    };
+  }>;
 };
