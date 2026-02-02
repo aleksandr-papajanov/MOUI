@@ -1,6 +1,5 @@
-export interface ITimeSegment {
+export interface IProviderScheduleSegment {
     startTime: string;
     endTime: string;
-    segmentOrder: number;
     segmentType: string;
 }

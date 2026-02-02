@@ -67,8 +67,8 @@ export default function StrategyCard({ strategy }: StrategyCardProps) {
                                     <td>{(step.estimate.qualityScore * 100).toFixed(0)}%</td>
                                     <td>{step.estimate.emissionsKgCO2.toFixed(2)} kg</td>
                                     <td>
-                                        {step.allocatedSlot ? (
-                                            <small>{new Date(step.allocatedSlot.startTime).toLocaleString()}</small>
+                                        {step.allocatedSchedule ? (
+                                            <small>{new Date(step.allocatedSchedule.startTime).toLocaleString()}</small>
                                         ) : (
                                             <span className="text-muted">Not scheduled</span>
                                         )}

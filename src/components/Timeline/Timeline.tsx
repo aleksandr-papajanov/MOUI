@@ -6,8 +6,33 @@ interface TimelineProps {
     steps: IProcessStep[];
 }
 
+type SegmentType = 'FreeSpace' | 'Break' | 'Occupied' | 'WorkingTime';
+
+const getSegmentClassName = (segmentType: string): string => {
+    const type = segmentType.toLowerCase();
+    
+    if (type.includes('freespace') || type === 'freespace') {
+        return 'timeline-bar-freespace';
+    } else if (type.includes('break') || type === 'break') {
+        return 'timeline-bar-break';
+    } else if (type.includes('occupied') || type === 'occupied') {
+        return 'timeline-bar-occupied';
+    } else if (type.includes('workingtime') || type === 'workingtime') {
+        return 'timeline-bar-workingtime';
+    }
+    
+    // Default for unknown types
+    return 'timeline-bar-process';
+};
+
+const getSegmentLabel = (segmentType: string, duration: number): string => {
+    const type = segmentType.toLowerCase();
+    
+    return `${duration.toFixed(1)}h`;
+};
+
 export default function Timeline({ steps }: TimelineProps) {
-    const hasTimeline = steps.some(s => s.allocatedSlot);
+    const hasTimeline = steps.some(s => s.allocatedSchedule);
 
     if (!hasTimeline) {
         return <p className="text-muted">No timeline data available (time window was not specified)</p>;
@@ -16,7 +41,7 @@ export default function Timeline({ steps }: TimelineProps) {
     const sortedSteps = [...steps].sort((a, b) => a.stepNumber - b.stepNumber);
 
     // Calculate timeline boundaries
-    const allSlots = sortedSteps.map(s => s.allocatedSlot).filter(Boolean);
+    const allSlots = sortedSteps.map(s => s.allocatedSchedule).filter(Boolean);
     if (allSlots.length === 0) return null;
 
     const startTimes = allSlots.map(s => new Date(s!.startTime).getTime());
@@ -24,21 +49,6 @@ export default function Timeline({ steps }: TimelineProps) {
     const minTime = Math.min(...startTimes);
     const maxTime = Math.max(...endTimes);
     const totalDuration = maxTime - minTime;
-
-    // Calculate gaps between steps
-    const gaps: Array<{ start: number; end: number; duration: number }> = [];
-    for (let i = 0; i < sortedSteps.length - 1; i++) {
-        const currentStep = sortedSteps[i];
-        const nextStep = sortedSteps[i + 1];
-        if (currentStep.allocatedSlot && nextStep.allocatedSlot) {
-            const currentEnd = new Date(currentStep.allocatedSlot.endTime).getTime();
-            const nextStart = new Date(nextStep.allocatedSlot.startTime).getTime();
-            if (nextStart > currentEnd) {
-                const gapDuration = (nextStart - currentEnd) / (1000 * 60 * 60); // hours
-                gaps.push({ start: currentEnd, end: nextStart, duration: gapDuration });
-            }
-        }
-    }
 
     const formatDateTime = (date: Date) => {
         return date.toLocaleString('en-US', {
@@ -60,20 +70,53 @@ export default function Timeline({ steps }: TimelineProps) {
                 <span>{formatDateTime(new Date(maxTime))}</span>
             </div>
 
-            {/* Combined timeline showing all processes and breaks */}
+            {/* Combined timeline showing all processes */}
             <div className="timeline-combined">
                 <div className="timeline-label-combined">
                     <strong>Full Schedule</strong>
-                    <span>Execution + Breaks</span>
+                    <span>All Steps</span>
                 </div>
                 <div className="timeline-track">
                     {sortedSteps.map(step => {
-                        if (!step.allocatedSlot) return null;
-                        const start = new Date(step.allocatedSlot.startTime).getTime();
-                        const end = new Date(step.allocatedSlot.endTime).getTime();
-                        const duration = (end - start) / (1000 * 60 * 60);
-                        const leftPos = getPosition(start);
-                        const width = getPosition(end) - leftPos;
+                        if (!step.allocatedSchedule) return null;
+                        
+                        // Find all WorkingTime segments for this step
+                        const workingSegments = step.allocatedSchedule.segments?.filter(segment => {
+                            const type = segment.segmentType.toLowerCase();
+                            return type.includes('workingtime');
+                        }) || [];
+
+                        if (workingSegments.length === 0) {
+                            // Fallback: use full schedule time
+                            const start = new Date(step.allocatedSchedule.startTime).getTime();
+                            const end = new Date(step.allocatedSchedule.endTime).getTime();
+                            const duration = (end - start) / (1000 * 60 * 60);
+                            const leftPos = getPosition(start);
+                            const width = getPosition(end) - leftPos;
+
+                            return (
+                                <div
+                                    key={step.id}
+                                    className="timeline-bar timeline-bar-process"
+                                    style={{
+                                        left: `${leftPos}%`,
+                                        width: `${width}%`
+                                    }}
+                                    title={`Step ${step.stepNumber}: ${step.process}\n${formatDateTime(new Date(start))} - ${formatDateTime(new Date(end))}\n${duration.toFixed(1)}h`}
+                                >
+                                    <span className="timeline-bar-text">{step.stepNumber}</span>
+                                </div>
+                            );
+                        }
+
+                        // Find min startTime and max endTime among WorkingTime segments
+                        const segmentStartTimes = workingSegments.map(s => new Date(s.startTime).getTime());
+                        const segmentEndTimes = workingSegments.map(s => new Date(s.endTime).getTime());
+                        const minStart = Math.min(...segmentStartTimes);
+                        const maxEnd = Math.max(...segmentEndTimes);
+                        const duration = (maxEnd - minStart) / (1000 * 60 * 60);
+                        const leftPos = getPosition(minStart);
+                        const width = getPosition(maxEnd) - leftPos;
 
                         return (
                             <div
@@ -83,27 +126,9 @@ export default function Timeline({ steps }: TimelineProps) {
                                     left: `${leftPos}%`,
                                     width: `${width}%`
                                 }}
-                                title={`Step ${step.stepNumber}: ${step.process}\n${formatDateTime(new Date(start))} - ${formatDateTime(new Date(end))}\n${duration.toFixed(1)}h`}
+                                title={`Step ${step.stepNumber}: ${step.process}\n${formatDateTime(new Date(minStart))} - ${formatDateTime(new Date(maxEnd))}\n${duration.toFixed(1)}h (${workingSegments.length} segment${workingSegments.length > 1 ? 's' : ''})`}
                             >
                                 <span className="timeline-bar-text">{step.stepNumber}</span>
-                            </div>
-                        );
-                    })}
-                    {gaps.map((gap, index) => {
-                        const leftPos = getPosition(gap.start);
-                        const width = getPosition(gap.end) - leftPos;
-
-                        return (
-                            <div
-                                key={`gap-${index}`}
-                                className="timeline-bar timeline-bar-gap"
-                                style={{
-                                    left: `${leftPos}%`,
-                                    width: `${width}%`
-                                }}
-                                title={`Break: ${gap.duration.toFixed(1)}h\n${formatDateTime(new Date(gap.start))} - ${formatDateTime(new Date(gap.end))}`}
-                            >
-                                <span className="timeline-bar-text">⏸ {gap.duration.toFixed(1)}h</span>
                             </div>
                         );
                     })}
@@ -113,10 +138,10 @@ export default function Timeline({ steps }: TimelineProps) {
             {/* Individual steps timeline */}
             <div className="timeline-container">
                 {sortedSteps.map((step) => {
-                    if (!step.allocatedSlot) return null;
+                    if (!step.allocatedSchedule) return null;
 
-                    const start = new Date(step.allocatedSlot.startTime).getTime();
-                    const end = new Date(step.allocatedSlot.endTime).getTime();
+                    const start = new Date(step.allocatedSchedule.startTime).getTime();
+                    const end = new Date(step.allocatedSchedule.endTime).getTime();
                     const duration = (end - start) / (1000 * 60 * 60); // hours
 
                     return (
@@ -127,32 +152,39 @@ export default function Timeline({ steps }: TimelineProps) {
                                 <small>{step.selectedProviderName}</small>
                             </div>
                             <div className="timeline-track">
-                                {step.allocatedSlot.segments && step.allocatedSlot.segments.length > 0 ? (
-                                    // Show segments (execution + breaks)
-                                    step.allocatedSlot.segments.map((segment, segIndex) => {
-                                        const segStart = new Date(segment.startTime).getTime();
-                                        const segEnd = new Date(segment.endTime).getTime();
-                                        const segDuration = (segEnd - segStart) / (1000 * 60 * 60);
-                                        const leftPos = getPosition(segStart);
-                                        const width = getPosition(segEnd) - leftPos;
-                                        const isBreak = segment.segmentType.toLowerCase().includes('break');
+                                {step.allocatedSchedule.segments && step.allocatedSchedule.segments.length > 0 ? (
+                                    // Show WorkingTime, Break, and Occupied segments
+                                    step.allocatedSchedule.segments
+                                        .filter(segment => {
+                                            const type = segment.segmentType.toLowerCase();
+                                            // Show WorkingTime, Break, and Occupied segments
+                                            return type.includes('workingtime') || type.includes('break') || type.includes('occupied');
+                                        })
+                                        .map((segment, segIndex) => {
+                                            const segStart = new Date(segment.startTime).getTime();
+                                            const segEnd = new Date(segment.endTime).getTime();
+                                            const segDuration = (segEnd - segStart) / (1000 * 60 * 60);
+                                            const leftPos = getPosition(segStart);
+                                            const width = getPosition(segEnd) - leftPos;
+                                            const segmentClass = getSegmentClassName(segment.segmentType);
+                                            const segmentLabel = getSegmentLabel(segment.segmentType, segDuration);
 
-                                        return (
-                                            <div
-                                                key={`${step.id}-seg-${segIndex}`}
-                                                className={`timeline-bar ${isBreak ? 'timeline-bar-gap' : 'timeline-bar-process'}`}
-                                                style={{
-                                                    left: `${leftPos}%`,
-                                                    width: `${width}%`
-                                                }}
-                                                title={`${isBreak ? 'Break' : 'Execution'}: ${formatDateTime(new Date(segStart))} - ${formatDateTime(new Date(segEnd))} (${segDuration.toFixed(1)}h)`}
-                                            >
-                                                <span className="timeline-bar-text">
-                                                    {isBreak ? `⏸ ${segDuration.toFixed(1)}h` : `${segDuration.toFixed(1)}h`}
-                                                </span>
-                                            </div>
-                                        );
-                                    })
+                                            return (
+                                                <div
+                                                    key={`${step.id}-seg-${segIndex}`}
+                                                    className={`timeline-bar ${segmentClass}`}
+                                                    style={{
+                                                        left: `${leftPos}%`,
+                                                        width: `${width}%`
+                                                    }}
+                                                    title={`${segment.segmentType}: ${formatDateTime(new Date(segStart))} - ${formatDateTime(new Date(segEnd))} (${segDuration.toFixed(1)}h)`}
+                                                >
+                                                    <span className="timeline-bar-text">
+                                                        {segmentLabel}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })
                                 ) : (
                                     // Fallback: show single bar for whole slot
                                     <div

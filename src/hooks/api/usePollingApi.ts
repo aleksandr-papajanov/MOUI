@@ -74,7 +74,9 @@ export function usePollingApi<TRes = any>(
         // Execute request (errors are handled in useApi)
         let responseData: TRes | undefined;
         try {
+            console.log('Polling API request:', requestRef.current);
             responseData = await callApi(requestRef.current);
+            console.log('Polling response data:', responseData);
         } catch {
             // Error already handled in useApi and stored in error
             // Stop polling on error

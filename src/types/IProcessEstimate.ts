@@ -5,5 +5,5 @@ export interface IProcessEstimate {
     cost: number;
     qualityScore: number;
     emissionsKgCO2: number;
-    availableTimeSlots: ITimeWindow[];
+    duration: number;
 }

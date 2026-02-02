@@ -137,6 +137,45 @@
     border: 1px dashed var(--color-warning);
 }
 
+/* Segment type specific styles */
+.timeline-bar-workingtime {
+    background: var(--color-accent);
+}
+
+.timeline-bar-break {
+    background: repeating-linear-gradient(
+        45deg,
+        #FFC107,
+        #FFC107 10px,
+        rgba(255, 193, 7, 0.7) 10px,
+        rgba(255, 193, 7, 0.7) 20px
+    );
+    border: 1px dashed #FFC107;
+}
+
+.timeline-bar-freespace {
+    background: repeating-linear-gradient(
+        45deg,
+        #9E9E9E,
+        #9E9E9E 8px,
+        rgba(158, 158, 158, 0.5) 8px,
+        rgba(158, 158, 158, 0.5) 16px
+    );
+    border: 1px dashed #9E9E9E;
+    opacity: 0.8;
+}
+
+.timeline-bar-occupied {
+    background: repeating-linear-gradient(
+        45deg,
+        #F44336,
+        #F44336 10px,
+        rgba(244, 67, 54, 0.7) 10px,
+        rgba(244, 67, 54, 0.7) 20px
+    );
+    border: 1px dashed #F44336;
+}
+
 .timeline-bar-text {
     white-space: nowrap;
     overflow: hidden;

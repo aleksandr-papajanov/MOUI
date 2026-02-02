@@ -1,5 +1,5 @@
 import { IProcessEstimate } from './IProcessEstimate';
-import { IAllocatedSlot } from './IAllocatedSlot';
+import { IProviderSchedule } from './IProviderSchedule';
 
 export interface IProcessStep {
     id: string;
@@ -8,5 +8,5 @@ export interface IProcessStep {
     selectedProviderId: string;
     selectedProviderName: string;
     estimate: IProcessEstimate;
-    allocatedSlot?: IAllocatedSlot;
+    allocatedSchedule?: IProviderSchedule;
 }
